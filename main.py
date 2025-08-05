@@ -1,13 +1,13 @@
 #Import all frameworks/dependencies here
 from __future__ import annotations
 from datetime import datetime
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, app
 from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from sqlalchemy.orm import DeclarativeBase, relationship, Mapped, mapped_column
-from sqlalchemy import ForeignKey, Table, Column, String, Integer, select, DateTime, Float
+from sqlalchemy import ForeignKey, String, select, DateTime, Float
 from marshmallow import ValidationError
-from typing import List, Optional
+from typing import List
 import os
 
 #Init Flask app
@@ -22,7 +22,7 @@ class Base(DeclarativeBase):
     pass
 
 # Initialize SQLAlchemy and Marshmallow
-db = SQLAlchemy(model_class=Base)
+db = SQLAlchemy(model_class=Base, metadata=Base.metadata)
 db.init_app(app)
 ma = Marshmallow(app)
 
@@ -234,21 +234,6 @@ def delete_product(id):
 
 #Order Endpoints
 
-#GET all products for an order - WRONG
-@app.route('/orders/<int:order_id>/products', methods=['GET'])
-def products_for_order():
-    query = select(Order)
-    products_in_order = db.session.execute(query).scalars().all()
-
-    return orders_schema.jsonify(products_in_order), 200
-
-#GET all orders for a user - WRONG
-@app.route('/orders/user/<int:user_id>', methods=['GET'])
-def orders_for_user(id):
-    orders_by_user = db.session.get(Order, id)
-
-    return order_schema.jsonify(orders_by_user), 200
-
 #POST/Create new order - MAYBE
 @app.route('/orders', methods=['POST'])
 def new_order():
@@ -264,13 +249,38 @@ def new_order():
     return order_schema.jsonify(create_order), 201
 
 #PUT Add an existing product to an existing order (prevent duplicates)
+@app.route('/orders/<int:order_id>/add_product/<int:product_id>', methods=['PUT'])
+def add_product(order_id, product_id):
+    #Code Here
+    pass
 
 #DELETE remove an existing product from an existing order
+@app.route('/orders/<int:order_id>/remove_product/<int:product_id>')
+def remove_product():
+    #Code Here
+    pass
+
+#GET all orders for a user - WRONG
+@app.route('/orders/user/<int:user_id>', methods=['GET'])
+def orders_for_user(user_id):
+    orders_by_user = db.session.get(Order, user_id)
+
+    #return orders_schema.jsonify(orders_by_user), 200
+    pass
+
+#GET all products for an order - WRONG
+@app.route('/orders/<int:order_id>/products', methods=['GET'])
+def products_for_order(order_id):
+    query = select(Order, order_id)
+    products_in_order = db.session.execute(query).scalars().all()
+
+    #return orders_schema.jsonify(products_in_order), 200
+    pass
 
 #Init Database
 if __name__ == '__main__':
-
     with app.app_context():
+        print("Creating tables...")
         db.create_all()
-
+        print("Tables created.")
     app.run(debug=True)
