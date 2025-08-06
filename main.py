@@ -131,7 +131,7 @@ def new_user():
         user_data = user_schema.load(request.json)
     except ValidationError as e:
         return jsonify(e.messages), 400
-    
+     
     create_user = User(name=user_data['name'], address=user_data['address'], email=user_data['email'])
     db.session.add(create_user)
     db.session.commit()
@@ -234,7 +234,7 @@ def delete_product(id):
 
 #Order Endpoints
 
-#POST/Create new order - MAYBE
+#POST/Create new order - Done
 @app.route('/orders', methods=['POST'])
 def new_order():
     try:
@@ -242,7 +242,7 @@ def new_order():
     except ValidationError as e:
         return jsonify(e.messages), 400
     
-    create_order = Order(order_date=order_data['order_date'], user_id=['user_id'])
+    create_order = Order(order_date=order_data['order_date'], user_id=order_data['user_id'])
     db.session.add(create_order)
     db.session.commit()
 
@@ -251,31 +251,54 @@ def new_order():
 #PUT Add an existing product to an existing order (prevent duplicates)
 @app.route('/orders/<int:order_id>/add_product/<int:product_id>', methods=['PUT'])
 def add_product(order_id, product_id):
-    #Code Here
-    pass
+    order = db.session.get(Order, order_id)
+    product = db.session.get(Product, product_id)
+
+    if not order or not product:
+        return jsonify({"message": "Order or Product does not exist."}), 404
+    
+    #Prevent Duplicates
+    if product in order.products:
+        return jsonify({"message": "Product already in order."}), 400
+    
+    order.products.append(product)
+    db.session.commit()
+
+    return order_schema.jsonify(order), 200
 
 #DELETE remove an existing product from an existing order
-@app.route('/orders/<int:order_id>/remove_product/<int:product_id>')
-def remove_product():
-    #Code Here
-    pass
+@app.route('/orders/<int:order_id>/remove_product/<int:product_id>', methods=['DELETE'])
+def remove_product(order_id, product_id):
+    order = db.session.get(Order, order_id)
+    product = db.session.get(Product, product_id)
 
-#GET all orders for a user - WRONG
+    if not order or not product:
+        return jsonify({"message": "Order or Product does not exist."}), 404
+    
+    if product not in order.products:
+        return jsonify({"message": "Product not in order."}), 400
+    
+    order.products.remove(product)
+    db.session.commit()
+
+    return order_schema.jsonify(order), 200
+
+#GET all orders for a user
 @app.route('/orders/user/<int:user_id>', methods=['GET'])
 def orders_for_user(user_id):
-    orders_by_user = db.session.get(Order, user_id)
+    query = select(Order).where(Order.user_id == user_id)
+    orders = db.session.execute(query).scalars().all()
+    return orders_schema.jsonify(orders), 200
 
-    #return orders_schema.jsonify(orders_by_user), 200
-    pass
-
-#GET all products for an order - WRONG
+#GET all products for an order
 @app.route('/orders/<int:order_id>/products', methods=['GET'])
 def products_for_order(order_id):
-    query = select(Order, order_id)
-    products_in_order = db.session.execute(query).scalars().all()
+    order = db.session.get(Order, order_id)
+    if not order:
+        return jsonify({"message": "Order not found"}), 404
 
-    #return orders_schema.jsonify(products_in_order), 200
-    pass
+    products_in_order = order.products
+    return products_schema.jsonify(products_in_order), 200
 
 #Init Database
 if __name__ == '__main__':
